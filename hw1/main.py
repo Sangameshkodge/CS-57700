@@ -264,8 +264,8 @@ class Relu():
 
 class Linear():
     def __init__(self, input_dim, output_dim, lr, reg, l):
-        self.weights = 2*np.random.rand(input_dim, output_dim)-1#np.random.normal(0.0, 1.0,(input_dim, output_dim))
-        self.bias = 2*np.random.rand(output_dim,1)-1#np.random.normal(0.0, 1.0,(output_dim,1))
+        self.weights = np.random.randn(input_dim, output_dim)#np.random.normal(0.0, 1.0,(input_dim, output_dim))
+        self.bias = np.random.randn(output_dim,1)#np.random.normal(0.0, 1.0,(output_dim,1))
         self.lr = lr
         self.l= l
         self.reg=reg
@@ -280,8 +280,9 @@ class Linear():
     def update(self):
         if self.reg == "l2":
             self.weight_grad += self.l * self.weights
-        self.weights -= self.weight_grad *self.lr
-        self.bias -= self.bias_grad * self.lr
+        ### Cliping the gradients was found to be essential to solve exploding gradient issue
+        self.weights -= np.clip(self.weight_grad *self.lr,-0.5, 0.5)
+        self.bias -= np.clip(self.bias_grad * self.lr,-0.5, 0.5)
         
 
 class Logistic_regression():
@@ -371,7 +372,7 @@ class Neural_network2():
         self.lr=lr
     def forward(self, x, y):
         #Normalize the data to be in 0-1
-        x = x/5
+        #x = x/5
         x = self.dropout1.forward(self.relu1.forward(self.linear1.forward(x)))
         x = self.dropout2.forward(self.relu2.forward(self.linear2.forward(x)))
         x = self.dropout3.forward(self.relu3.forward(self.linear3.forward(x)))
@@ -381,8 +382,8 @@ class Neural_network2():
         return pred
     def backward(self):
         # add regularisation loss term to the loss
-        # if self.regulariser == "l2":
-        #     self.loss += np.sum(self.linear1.weights**2)*self.l + np.sum(self.linear2.weights**2)*self.l + np.sum(self.linear3.weights**2)*self.l
+        if self.regulariser == "l2":
+            self.loss += np.sum(self.linear1.weights**2)*self.l + np.sum(self.linear2.weights**2)*self.l + np.sum(self.linear3.weights**2)*self.l
         # backpropgate to compute the gradients
         input_grad = self.criterion.backward()
         input_grad = self.linear5.backward(input_grad)
@@ -402,6 +403,8 @@ class Neural_network2():
         self.linear1.update()
         self.linear2.update()
         self.linear3.update()
+        self.linear4.update()
+        self.linear5.update()
         return
 
 class F1_score():
@@ -540,15 +543,15 @@ def core(lr=0.01, regulariser = "l2", l=0.1, p=0.1, epochs=100, embed_algo = "gl
         SaveFile(test_tweet_id2text, test_tweet_id2issue, test_tweet_id2author_label, test_tweet_id2label, 'test_'+network+'.csv')
 
 
-def LR(lr=0.01, regulariser = "l2", l=0.1, epochs=50, embed_algo = "glove", load=True, cross_k = 1):
+def LR(lr=0.01, regulariser = "l2", l=0.1, epochs=200, embed_algo = "glove", load=True, cross_k = 1):
     core(lr=lr, regulariser = regulariser, l=l, epochs=epochs, embed_algo =embed_algo, load=load, cross_k = cross_k, network= "lr")
     return
 
-def NN(lr=0.01, regulariser = None, l=0.1, p= 0.1, epochs=50, embed_algo = "glove", hidden_state=512, load= True, cross_k = 1):
+def NN(lr=0.01, regulariser = "l2", l=0.1, p= 0.1, epochs=200, embed_algo = "glove", hidden_state=128, load= True, cross_k = 1):
     core(lr=lr, regulariser = regulariser, l=l, p= p,epochs=epochs, embed_algo = embed_algo, load=load, cross_k = cross_k, network= "nn", hidden_state=hidden_state)
     return
 
-def NN2(lr=1.0, regulariser = None, l=0.1, p= 0.1, epochs=100, embed_algo = "glove", hidden_state=[256, 128, 64, 32], load= True, cross_k = 1):
+def NN2(lr=0.01, regulariser = "l2", l=0.1, p= 0.1, epochs=200, embed_algo = "glove", hidden_state=[128, 128, 32, 32], load= True, cross_k = 1):
     core(lr=lr, regulariser = regulariser, l=l, p= p,epochs=epochs, embed_algo = embed_algo, load=load, cross_k = cross_k, network= "nn2", hidden_state=hidden_state)
     return
 
@@ -562,9 +565,9 @@ if __name__ == '__main__':
     parser.add_argument('-lr', '--lr',                   default=0.01,          type=float,      help='Learning Rate')
     parser.add_argument('-r', '--regulariser',           default="l2",          type=str,        help='l2, or None regulariser')
     parser.add_argument('-lm', '--lam',                  default=0.1,           type=float,      help='lambda for  regulariser')
-    parser.add_argument('-e', '--epochs',                default=20,            type=int,        help='Set number of epochs')
+    parser.add_argument('-e', '--epochs',                default=100,            type=int,        help='Set number of epochs')
     parser.add_argument('-ea', '--embed_algo',           default="glove",       type=str,        help='Embedding algorithm')
-    parser.add_argument('-hs', '--hidden_state',         default="512,256,256,128,64", type=str,        help='number of hidden state')
+    parser.add_argument('-hs', '--hidden_state',         default="256,256,128,64,32", type=str,        help='number of hidden state')
     parser.add_argument('-cv', '--compute_vocab',        default=False,         type=bool,       help='true if vocab is to be computed')
     parser.add_argument('-ck', '--cross_k',              default=5,             type=int,        help='k for k fold cross validation')
     parser.add_argument('-p', '--p',                     default=0.1,           type=float,      help='p for dropout ')
@@ -580,7 +583,6 @@ if __name__ == '__main__':
         print("Running Neural Network:")
         NN(lr=args.lr, regulariser = args.regulariser, l=args.lam, p= args.p, epochs=args.epochs, embed_algo = args.embed_algo,load = not args.compute_vocab, hidden_state= args.hidden_state[0], cross_k= args.cross_k)
     elif args.network =="nn2":
-        ### Single layer gave the best results in my experiments
         print("Running Neural Network 2:")
         NN2(lr=args.lr, regulariser = args.regulariser, l=args.lam, p= args.p,epochs=args.epochs, embed_algo = args.embed_algo,load = not args.compute_vocab, hidden_state= args.hidden_state[1:], cross_k= args.cross_k)
     else:
