@@ -14,12 +14,14 @@ Training:
 
 
 
-python main.py 
+    cd hw1/
 
-Embedding- 
+    python main.py 
+
+Embedding: 
 
 
 
-cd glove
+    cd hw1/glove
 
-sh demo.sh
+    sh demo.sh
