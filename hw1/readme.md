@@ -10,9 +10,16 @@ References:
 
 Running the codes
 
-Training - 
+Training:
+
+
+
 python main.py 
 
 Embedding- 
+
+
+
 cd glove
+
 sh demo.sh
