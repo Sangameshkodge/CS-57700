@@ -518,7 +518,7 @@ def core(lr=0.01, regulariser = "l2", l=0.1, p=0.1, epochs=100, embed_algo = "gl
             label = np.argmax(pred)
             test_tweet_id2label[tweet_id]=label
         # Save predicted labels in 'test_lr.csv'
-        SaveFile(test_tweet_id2text, test_tweet_id2issue, test_tweet_id2author_label, test_tweet_id2label, 'test_'+network+'lr.csv')
+        SaveFile(test_tweet_id2text, test_tweet_id2issue, test_tweet_id2author_label, test_tweet_id2label, 'test_'+network+'.csv')
 
 
 def LR(lr=0.01, regulariser = "l2", l=0.1, epochs=20, embed_algo = "glove", load=True, cross_k = 1):
