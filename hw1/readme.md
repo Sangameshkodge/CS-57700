@@ -10,7 +10,7 @@ References:
 
 Running the codes
 
-Training:
+Training:(See the training file for changing the arguments)
 
 
 
@@ -18,7 +18,7 @@ Training:
 
     python main.py 
 
-Embedding: 
+Embedding:(must download the directory form the link https://purdue0-my.sharepoint.com/:f:/g/personal/skodge_purdue_edu/EhJaVG4if69IjIOuCTwo0LMBsH_za6tTpAw6pr599HRI9Q?e=GgxYkF)
 
 
 
