@@ -410,6 +410,7 @@ def core(lr=0.01, regulariser = "l2", l=0.1, p=0.1, epochs=100, embed_algo = "gl
             combined_vocab= glove_vocab()
             embed_matrix =combined_vocab.embed_matrix
         else:
+            ### This part of code deals with word2vec and is not used in the final submission
             embed_matrix, context_matrix,combined_vocab = pickle.load(open("./External_Data/representation.embedding", "rb"))
         Vocab = small_vocab (train_tweet_id2text, train_tweet_id2issue, train_tweet_id2author_label, embed = embed_matrix , combined_vocab = combined_vocab )
         embed_size = embed_matrix.shape[1] 
@@ -558,11 +559,11 @@ if __name__ == '__main__':
         LR(lr=args.lr, regulariser = args.regulariser, l=args.lam, epochs=args.epochs, embed_algo = args.embed_algo, load = not args.compute_vocab, cross_k= args.cross_k)
     elif args.network =="nn":
         print("Running Neural Network:")
-        NN(lr=args.lr, regulariser = args.regulariser, l=args.lam, p= args.p, epochs=args.epochs, embed_algo = args.embed_algo, hidden_state= args.hidden_state[0], cross_k= args.cross_k)
+        NN(lr=args.lr, regulariser = args.regulariser, l=args.lam, p= args.p, epochs=args.epochs, embed_algo = args.embed_algo,load = not args.compute_vocab, hidden_state= args.hidden_state[0], cross_k= args.cross_k)
     elif args.network =="nn2":
         ### Hyperparameter tuning for deep network was challenging
         print("Running Neural Network 2:")
-        NN2(lr=args.lr, regulariser = args.regulariser, l=args.lam, p= args.p,epochs=args.epochs, embed_algo = args.embed_algo, hidden_state= args.hidden_state[1:], cross_k= args.cross_k)
+        NN2(lr=args.lr, regulariser = args.regulariser, l=args.lam, p= args.p,epochs=args.epochs, embed_algo = args.embed_algo,load = not args.compute_vocab, hidden_state= args.hidden_state[1:], cross_k= args.cross_k)
     else:
         LR()
         NN()

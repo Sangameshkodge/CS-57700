@@ -257,10 +257,11 @@ if __name__ == "__main__":
 
         with open("./External_Data/text.data", "wb") as f:  # Pickling
             pickle.dump(dataset, f)
+        with open("./External_Data/corpus.txt", "w") as f:
+           f.writelines("%s\n" % line for line in dataset)
     else:
         dataset = pickle.load(open("./External_Data/text.data", "rb"))
-        #with open("./External_Data/corpus.txt", "w") as f:
-        #    f.writelines("%s\n" % line for line in dataset)
+        
             
 
 
