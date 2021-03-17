@@ -680,10 +680,10 @@ if __name__ == '__main__':
     #         LR()
     #         NN()
         
-        '''
-        Final Run
-        '''
-        print("Running Logistic Regression:")
-        LR()
-        print("Running Neural Network:")
-        NN()
+    '''
+    Final Run
+    '''
+    print("Running Logistic Regression:")
+    LR()
+    print("Running Neural Network:")
+    NN()
