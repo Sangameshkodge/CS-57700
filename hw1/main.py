@@ -1,12 +1,16 @@
 """
 Find all the details on https://github.com/Sangameshkodge/CS-57700.git
+I use glove(https://github.com/stanfordnlp/GloVe) for generating word embeddings from dataset found online (https://www.reddit.com/r/datasets/comments/6fniik/over_one_million_tweets_collected_from_us/).
+The raw directory found on (https://purdue0-my.sharepoint.com/:f:/g/personal/skodge_purdue_edu/EhJaVG4if69IjIOuCTwo0LMBsH_za6tTpAw6pr599HRI9Q?e=GgxYkF) 
+Author: Sangamesh Kodge
+email: skodge
 """
 import csv
 from random import randrange, shuffle
 from nltk.tokenize import TweetTokenizer
 import numpy as np
 import pickle 
-from tqdm import tqdm
+#from tqdm import tqdm
 import matplotlib.pyplot as plt
 
 ### Creates a vocabs
@@ -269,6 +273,10 @@ class Linear():
         self.lr = lr
         self.l= l
         self.reg=reg
+    # def normalize(self, x):
+    #     x_norm=(np.sqrt(np.sum(x**2, 1))).repeat(x.shape[1]).reshape(x.shape)
+    #     x = np.where( x_norm>1.0, x/x_norm , x )
+    #     return x
     def forward(self, x):
         self.x = x
         return np.matmul(self.weights.T, x) +self.bias
@@ -281,8 +289,12 @@ class Linear():
         if self.reg == "l2":
             self.weight_grad += self.l * self.weights
         ### Cliping the gradients was found to be essential to solve exploding gradient issue
+        # self.weights -= np.clip(self.normalize(self.weight_grad *self.lr),-0.5, 0.5)
+        # self.bias -= np.clip(self.normalize(self.bias_grad * self.lr),-0.5, 0.5)
         self.weights -= np.clip(self.weight_grad *self.lr,-0.5, 0.5)
         self.bias -= np.clip(self.bias_grad * self.lr,-0.5, 0.5)
+    def drop_lr(self):
+        self.lr=self.lr/10
         
 
 class Logistic_regression():
@@ -297,14 +309,21 @@ class Logistic_regression():
         pred, self.loss = self.criterion.forward(logits, y) 
         return pred
     def backward(self):
-        # add regularisation loss term to the loss
-        if self.regulariser == "l2":
-            self.loss += np.sum(self.linear.weights**2)*self.l
         # backpropgate to compute the gradients
         input_grad = self.criterion.backward()
         _ = self.linear.backward(input_grad)
+        return
+    def update(self):
         #update weights 
         self.linear.update()
+        return
+    def reg_loss(self):
+        # add regularisation loss term to the loss
+        if self.regulariser == "l2":
+            self.loss += np.sum(self.linear.weights**2)*self.l
+        return
+    def drop_lr(self):
+        self.linear.drop_lr()
         return
 
 class dropout():
@@ -323,10 +342,10 @@ class dropout():
 
 class Neural_network():
     def __init__(self, input_dim, hidden_state, output_dim, lr=0.01, regulariser = None, l = None, p=0):
-        self.linear1 =  Linear(input_dim= input_dim, output_dim= hidden_state, lr=0.01, reg=regulariser, l=l)
+        self.linear1 =  Linear(input_dim= input_dim, output_dim= hidden_state, lr=lr, reg=regulariser, l=l)
         self.relu1 = Relu()
         self.dropout1 = dropout(p=p)
-        self.linear2 =  Linear(input_dim= hidden_state, output_dim= output_dim, lr=0.01, reg=regulariser, l=l)
+        self.linear2 =  Linear(input_dim= hidden_state, output_dim= output_dim, lr=lr*10, reg=regulariser, l=l)
         self.criterion = LossFunction()
         self.l = l
         self.regulariser = regulariser
@@ -337,58 +356,61 @@ class Neural_network():
         pred, self.loss = self.criterion.forward(logits, y) 
         return pred
     def backward(self):
-        # add regularisation loss term to the loss
-        if self.regulariser == "l2":
-            self.loss += np.sum(self.linear1.weights**2)*self.l + np.sum(self.linear2.weights**2)*self.l
         # backpropgate to compute the gradients
         input_grad = self.criterion.backward()
         input_grad = self.linear2.backward(input_grad)
         input_grad = self.dropout1.backward(input_grad)
         input_grad = self.relu1.backward(input_grad)
         _ = self.linear1.backward(input_grad)
+        return
+    def reg_loss(self):
+        # add regularisation loss term to the loss
+        if self.regulariser == "l2":
+            self.loss += np.sum(self.linear1.weights**2)*self.l + np.sum(self.linear2.weights**2)*self.l
+        return
+        
+    def update(self):
         #update weights 
         self.linear1.update()
         self.linear2.update()
         return
+    def drop_lr(self):
+        self.linear1.drop_lr()
+        self.linear2.drop_lr()
 
 class Neural_network2():
     def __init__(self, input_dim, hidden_state, output_dim, lr=0.01, regulariser = None, l = None, p=0):
-        self.linear1 =  Linear(input_dim= input_dim, output_dim= hidden_state[0], lr=0.01, reg=regulariser, l=l)
+        self.linear1 =  Linear(input_dim= input_dim, output_dim= hidden_state[0], lr=lr, reg=regulariser, l=l)
         self.relu1 = Relu()
         self.dropout1 = dropout(p=p)
-        self.linear2 =  Linear(input_dim= hidden_state[0], output_dim= hidden_state[1], lr=0.01, reg=regulariser, l=l)
+        self.linear2 =  Linear(input_dim= hidden_state[0], output_dim= hidden_state[1], lr=lr*10, reg=regulariser, l=l)
         self.relu2 = Relu()
         self.dropout2 = dropout(p=p)
-        self.linear3 =  Linear(input_dim= hidden_state[1], output_dim= hidden_state[2], lr=0.01, reg=regulariser, l=l)
+        self.linear3 =  Linear(input_dim= hidden_state[1], output_dim= hidden_state[2], lr=lr*100, reg=regulariser, l=l)
         self.relu3 = Relu()
         self.dropout3 = dropout(p=p)
-        self.linear4 =  Linear(input_dim= hidden_state[2], output_dim= hidden_state[3], lr=0.01, reg=regulariser, l=l)
-        self.relu4 = Relu()
-        self.dropout4 = dropout(p=p)
-        self.linear5 =  Linear(input_dim= hidden_state[3], output_dim= output_dim, lr=0.01, reg=regulariser, l=l)
+        self.linear4 =  Linear(input_dim= hidden_state[2], output_dim= output_dim, lr=lr*1000, reg=regulariser, l=l)
+        # self.relu4 = Relu()
+        # self.dropout4 = dropout(p=p)
+        # self.linear5 =  Linear(input_dim= hidden_state[3], output_dim= output_dim, lr=0.01, reg=regulariser, l=l)
         self.criterion = LossFunction()
         self.l = l
         self.regulariser = regulariser
         self.lr=lr
     def forward(self, x, y):
-        #Normalize the data to be in 0-1
-        #x = x/5
         x = self.dropout1.forward(self.relu1.forward(self.linear1.forward(x)))
         x = self.dropout2.forward(self.relu2.forward(self.linear2.forward(x)))
         x = self.dropout3.forward(self.relu3.forward(self.linear3.forward(x)))
-        x = self.dropout4.forward(self.relu4.forward(self.linear4.forward(x)))
-        logits = self.linear5.forward(x)
+        #x = self.dropout4.forward(self.relu4.forward(self.linear4.forward(x)))
+        logits = self.linear4.forward(x)
         pred, self.loss = self.criterion.forward(logits, y) 
         return pred
     def backward(self):
-        # add regularisation loss term to the loss
-        if self.regulariser == "l2":
-            self.loss += np.sum(self.linear1.weights**2)*self.l + np.sum(self.linear2.weights**2)*self.l + np.sum(self.linear3.weights**2)*self.l
         # backpropgate to compute the gradients
         input_grad = self.criterion.backward()
-        input_grad = self.linear5.backward(input_grad)
-        input_grad = self.dropout4.backward(input_grad)
-        input_grad = self.relu4.backward(input_grad)
+        # input_grad = self.linear5.backward(input_grad)
+        # input_grad = self.dropout4.backward(input_grad)
+        # input_grad = self.relu4.backward(input_grad)
         input_grad = self.linear4.backward(input_grad)
         input_grad = self.dropout3.backward(input_grad)
         input_grad = self.relu3.backward(input_grad)
@@ -399,13 +421,28 @@ class Neural_network2():
         input_grad = self.dropout1.backward(input_grad)
         input_grad = self.relu1.backward(input_grad)
         input_grad = self.linear1.backward(input_grad)
+        return
+    def reg_loss(self):
+        # add regularisation loss term to the loss
+        if self.regulariser == "l2":
+            self.loss += np.sum(self.linear1.weights**2)*self.l + np.sum(self.linear2.weights**2)*self.l + np.sum(self.linear3.weights**2)*self.l+ np.sum(self.linear4.weights**2)*self.l
+        return
+    def update(self):
         #update weights 
         self.linear1.update()
         self.linear2.update()
         self.linear3.update()
         self.linear4.update()
-        self.linear5.update()
+        #self.linear5.update()
         return
+
+    def drop_lr(self):
+        self.linear1.drop_lr()
+        self.linear2.drop_lr()
+        self.linear3.drop_lr()
+        self.linear4.drop_lr()
+        return
+
 
 class F1_score():
     def __init__(self):
@@ -446,8 +483,10 @@ def core(lr=0.01, regulariser = "l2", l=0.1, p=0.1, epochs=100, embed_algo = "gl
     # set initial variables 
     train_total = len(overall_trainset)
     train_correct = np.zeros(epochs)
+    train_loss = np.zeros(epochs)
     if cross_k!=1:
         val_correct = np.zeros(epochs)
+        val_loss = np.zeros(epochs)
     f1_var = F1_score()
     # Initialize the models for each issue and author
     model = {}
@@ -477,13 +516,17 @@ def core(lr=0.01, regulariser = "l2", l=0.1, p=0.1, epochs=100, embed_algo = "gl
             valset = []
             val_size=0
         # Train and validate on current trainset and validation set
-        for iterations in tqdm(range(epochs)):
+        #for iterations in tqdm(range(epochs)):
+        for iterations in range(epochs):
             correct=0.0
             for tweet_id, author, issue, x, y in trainset:
                 pred=model[author][issue].forward(x, y)
                 if np.argmax(pred) == np.argmax(y):
                     correct+=1
+                model[author][issue].reg_loss()
                 model[author][issue].backward()
+                model[author][issue].update()
+                train_loss[iterations]  += model[author][issue].loss/train_size
             train_correct[iterations] += 100 * correct/ train_size
             if cross_k!=1:
                 correct=0.0
@@ -491,7 +534,13 @@ def core(lr=0.01, regulariser = "l2", l=0.1, p=0.1, epochs=100, embed_algo = "gl
                     pred = model[author][issue].forward(x, y)
                     if np.argmax(pred) == np.argmax(y):
                         correct+=1
+                    model[author][issue].reg_loss()
+                    val_loss[iterations]  += model[author][issue].loss/val_size
                 val_correct[iterations] += 100 * correct/ val_size
+            if iterations==99 or iterations==149:
+                for i in range(Vocab.len_author):
+                    for j in range(Vocab.len_issue):
+                        model[i][j].drop_lr()
         if cross_k!=1:
             # add the current models output to the F1 score class to build a confusion matrix
             y_pred = []
@@ -522,13 +571,35 @@ def core(lr=0.01, regulariser = "l2", l=0.1, p=0.1, epochs=100, embed_algo = "gl
         print(f1_score.mean())
         print(f1_score)
         #Plot average train and validation error with epochs
+        plt.plot( range(epochs), train_loss, label="Train Accuracy")
+        plt.plot( range(epochs), val_loss, label="Validation Accuracy")
+        plt.xlabel('Epochs')
+        plt.ylabel('Loss')
+        plt.title('Train and validation loss vs epochs at {}'.format(lr))
+        plt.legend()
+        if hidden_state!=4096:
+            if network =="nn":
+                plt.savefig("./Images/loss_"+network+"_{}_{:.6f}.png".format(hidden_state,f1_score.mean()))
+            else:
+                plt.savefig("./Images/loss_"+network+"_ld_{}_{:.6f}.png".format(l,f1_score.mean()))
+        else:
+            plt.savefig("./Images/loss_"+network+"_ld_{}_{:.6f}.png".format(l,f1_score.mean()))
+        plt.close()
+        #Plot average train and validation error with epochs
         plt.plot( range(epochs), train_correct, label="Train Accuracy")
         plt.plot( range(epochs), val_correct, label="Validation Accuracy")
         plt.xlabel('Epochs')
         plt.ylabel('Accuracy')
-        plt.title('Train and validation accuracy vs epochs')
+        plt.title('Train and validation accuracy vs epochs at {}'.format(lr))
         plt.legend()
-        plt.show()
+        if hidden_state!=4096:
+            if network =="nn":
+                plt.savefig("./Images/accuracy_"+network+"_{}_{:.6f}.png".format(hidden_state,f1_score.mean()))
+            else:
+                plt.savefig("./Images/accuracy_"+network+"_ld_{}_{:.6f}.png".format(l,f1_score.mean()))
+        else:
+            plt.savefig("./Images/accuracy_"+network+"_ld_{}_{:.6f}.png".format(l,f1_score.mean()))
+        plt.close()
     else:
         # Read test data
         test_tweet_id2text, test_tweet_id2issue, test_tweet_id2author_label, test_tweet_id2label = ReadFile('test.csv')
@@ -543,15 +614,15 @@ def core(lr=0.01, regulariser = "l2", l=0.1, p=0.1, epochs=100, embed_algo = "gl
         SaveFile(test_tweet_id2text, test_tweet_id2issue, test_tweet_id2author_label, test_tweet_id2label, 'test_'+network+'.csv')
 
 
-def LR(lr=0.01, regulariser = "l2", l=0.1, epochs=200, embed_algo = "glove", load=True, cross_k = 1):
+def LR(lr=0.05, regulariser = "l2", l=0.1, epochs=100, embed_algo = "glove", load=True, cross_k = 1):
     core(lr=lr, regulariser = regulariser, l=l, epochs=epochs, embed_algo =embed_algo, load=load, cross_k = cross_k, network= "lr")
     return
 
-def NN(lr=0.01, regulariser = "l2", l=0.1, p= 0.1, epochs=200, embed_algo = "glove", hidden_state=128, load= True, cross_k = 1):
+def NN(lr=0.01, regulariser = "l2", l=0.1, p= 0.2, epochs=200, embed_algo = "glove", hidden_state=128, load= True, cross_k = 1):
     core(lr=lr, regulariser = regulariser, l=l, p= p,epochs=epochs, embed_algo = embed_algo, load=load, cross_k = cross_k, network= "nn", hidden_state=hidden_state)
     return
 
-def NN2(lr=0.01, regulariser = "l2", l=0.1, p= 0.1, epochs=200, embed_algo = "glove", hidden_state=[128, 128, 32, 32], load= True, cross_k = 1):
+def NN2(lr=1e-8, regulariser = "l2", l=0.1, p= 0.2, epochs=200, embed_algo = "glove", hidden_state=[128, 64, 32], load= True, cross_k = 1):
     core(lr=lr, regulariser = regulariser, l=l, p= p,epochs=epochs, embed_algo = embed_algo, load=load, cross_k = cross_k, network= "nn2", hidden_state=hidden_state)
     return
 
@@ -560,36 +631,59 @@ if __name__ == '__main__':
     The following lines are used for tuning the hypreparameters.
     Uncomment this part if you need to read the vectors from ./glove/vector.txt
     '''
-    import argparse
-    parser = argparse.ArgumentParser( description='HW 1', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('-lr', '--lr',                   default=0.01,          type=float,      help='Learning Rate')
-    parser.add_argument('-r', '--regulariser',           default="l2",          type=str,        help='l2, or None regulariser')
-    parser.add_argument('-lm', '--lam',                  default=0.1,           type=float,      help='lambda for  regulariser')
-    parser.add_argument('-e', '--epochs',                default=100,            type=int,        help='Set number of epochs')
-    parser.add_argument('-ea', '--embed_algo',           default="glove",       type=str,        help='Embedding algorithm')
-    parser.add_argument('-hs', '--hidden_state',         default="256,256,128,64,32", type=str,        help='number of hidden state')
-    parser.add_argument('-cv', '--compute_vocab',        default=False,         type=bool,       help='true if vocab is to be computed')
-    parser.add_argument('-ck', '--cross_k',              default=5,             type=int,        help='k for k fold cross validation')
-    parser.add_argument('-p', '--p',                     default=0.1,           type=float,      help='p for dropout ')
-    parser.add_argument('-n', '--network',               default="all",          type=str,        help='network')
-    global args
-    args = parser.parse_args()
-    print(args)
-    args.hidden_state = [int(h.strip()) for h in args.hidden_state.split(",")]
-    if args.network =="lr":
+    # import argparse
+    # parser = argparse.ArgumentParser( description='HW 1', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    # parser.add_argument('-lr', '--lr',                   default="1.0,0.5,0.1,0.05,0.01",          type=str,      help='Learning Rate')
+    # parser.add_argument('-r', '--regulariser',           default="l2",          type=str,        help='l2, or None regulariser')
+    # parser.add_argument('-lm', '--lam',                  default=0.2,           type=float,      help='lambda for  regulariser')
+    # parser.add_argument('-e', '--epochs',                default=100,            type=int,        help='Set number of epochs')
+    # parser.add_argument('-ea', '--embed_algo',           default="glove",       type=str,        help='Embedding algorithm')
+    # parser.add_argument('-hs', '--hidden_state',         default="256,128,64,32", type=str,        help='number of hidden state')
+    # parser.add_argument('-ht', '--hidden_tuning',         default=None, type=str,        help='number of hidden state')
+    # parser.add_argument('-cv', '--compute_vocab',        default=False,         type=bool,       help='true if vocab is to be computed')
+    # parser.add_argument('-ck', '--cross_k',              default=10,             type=int,        help='k for k fold cross validation')
+    # parser.add_argument('-p', '--p',                     default=0.1,           type=float,      help='p for dropout ')
+    # parser.add_argument('-n', '--network',               default="all",          type=str,        help='network')
+    # global args
+    # args = parser.parse_args()
+    # print(args)
+    # args.lr = [float(i) for i in args.lr.split(",")]
+    # args.hidden_state = [int(h.strip()) for h in args.hidden_state.split(",")]
+    # if args.hidden_tuning is not None:
+    #     epoch = {512:50, 256:100, 128:200, 64:400, 32:800}
+    #     args.hidden_tuning = [int(h.strip()) for h in args.hidden_tuning.split(",")]
+    #     print(args.hidden_tuning)
+    #     for h in args.hidden_tuning:
+    #         print("\n\n\nRunning Neural Network: hidden neurons {}".format(h))
+    #         NN(lr=args.lr[-1], regulariser = args.regulariser, l=args.lam, p= args.p, epochs=epoch[h], embed_algo = args.embed_algo,load = not args.compute_vocab, hidden_state= h, cross_k= args.cross_k)           
+    # elif len(args.lr)>1:
+    #     print(args.lr)
+    #     for lr_cur in args.lr:
+    #         if args.network == "lr":
+    #             print("\n\n\nRunning Logistic Regression: lambda {}".format(lr_cur))
+    #             LR(lr=0.5, regulariser = args.regulariser, l=lr_cur, epochs=args.epochs, embed_algo = args.embed_algo, load = not args.compute_vocab, cross_k= args.cross_k)
+    #         else:
+    #             print("\n\n\nRunning Neural Network 2:  Lambda {}".format(lr_cur))
+    #             NN2(lr=lr_cur, regulariser = args.regulariser, l=args.lam, p= args.p,epochs=args.epochs, embed_algo = args.embed_algo,load = not args.compute_vocab, hidden_state= args.hidden_state[1:], cross_k= args.cross_k)
+    # else:
+    #     lr_cur = args.lr[0]
+    #     if args.network =="lr":
+    #         print("Running Logistic Regression:")
+    #         LR(lr=lr_cur, regulariser = args.regulariser, l=args.lam, epochs=args.epochs, embed_algo = args.embed_algo, load = not args.compute_vocab, cross_k= args.cross_k)
+    #     elif args.network =="nn":
+    #         print("Running Neural Network:")
+    #         NN(lr=lr_cur, regulariser = args.regulariser, l=args.lam, p= args.p, epochs=args.epochs, embed_algo = args.embed_algo,load = not args.compute_vocab, hidden_state= args.hidden_state[0], cross_k= args.cross_k)
+    #     elif args.network =="nn2":
+    #         print("Running Neural Network 2:")
+    #         NN2(lr=10e-8, regulariser = args.regulariser, l=args.lam, p= args.p,epochs=args.epochs, embed_algo = args.embed_algo,load = not args.compute_vocab, hidden_state= args.hidden_state[1:], cross_k= args.cross_k)
+    #     else:
+    #         LR()
+    #         NN()
+        
+        '''
+        Final Run
+        '''
         print("Running Logistic Regression:")
-        LR(lr=args.lr, regulariser = args.regulariser, l=args.lam, epochs=args.epochs, embed_algo = args.embed_algo, load = not args.compute_vocab, cross_k= args.cross_k)
-    elif args.network =="nn":
-        print("Running Neural Network:")
-        NN(lr=args.lr, regulariser = args.regulariser, l=args.lam, p= args.p, epochs=args.epochs, embed_algo = args.embed_algo,load = not args.compute_vocab, hidden_state= args.hidden_state[0], cross_k= args.cross_k)
-    elif args.network =="nn2":
-        print("Running Neural Network 2:")
-        NN2(lr=args.lr, regulariser = args.regulariser, l=args.lam, p= args.p,epochs=args.epochs, embed_algo = args.embed_algo,load = not args.compute_vocab, hidden_state= args.hidden_state[1:], cross_k= args.cross_k)
-    else:
         LR()
+        print("Running Neural Network:")
         NN()
-    '''
-    Final Run
-    '''
-    # LR()
-    # NN()
