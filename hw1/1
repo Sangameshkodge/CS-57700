@@ -1,4 +1,0 @@
-usage: main.py [-h] [-lr LR] [-r REGULARISER] [-lm LAM] [-e EPOCHS]
-               [-ea EMBED_ALGO] [-hs HIDDEN_STATE] [-ht HIDDEN_TUNING]
-               [-cv COMPUTE_VOCAB] [-ck CROSS_K] [-p P] [-n NETWORK]
-main.py: error: unrecognized arguments: 2

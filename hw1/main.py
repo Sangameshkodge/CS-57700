@@ -185,6 +185,8 @@ class dataset():
             word_list = word_list[:self.vocab.max_len]
             cur = np.array(temp)
             for i,word in enumerate(word_list):
+                if i>=self.vocab.max_len:
+                    break
                 if self.vocab.embed is None:
                     if word in self.vocab.word2index:
                         cur[i]=self.vocab.word2index[word]
@@ -244,7 +246,7 @@ class LossFunction():
     def __init__(self):
         pass
     def x_entropy(self, pred, target, eps = 1e-8):
-        return -np.sum(np.multiply(target, np.log(pred+eps)) + np.multiply(1-target, np.log(1-pred + eps)))
+        return -np.sum(np.multiply(target, np.log(pred+eps)))
     def softmax(self, x):
         e_x = np.exp(x - np.max(x))
         return e_x / e_x.sum()    
@@ -254,7 +256,7 @@ class LossFunction():
         self.loss = self.x_entropy(self.pred, target)
         return self.pred, self.loss
     def backward(self):
-        return -self.target + self.pred
+        return np.multiply(-self.target,(1-self.pred))#-self.target+ self.pred
 
 class Relu():
     def __init__(self, leak = 0):
@@ -368,7 +370,6 @@ class Neural_network():
         if self.regulariser == "l2":
             self.loss += np.sum(self.linear1.weights**2)*self.l + np.sum(self.linear2.weights**2)*self.l
         return
-        
     def update(self):
         #update weights 
         self.linear1.update()
@@ -614,15 +615,15 @@ def core(lr=0.01, regulariser = "l2", l=0.1, p=0.1, epochs=100, embed_algo = "gl
         SaveFile(test_tweet_id2text, test_tweet_id2issue, test_tweet_id2author_label, test_tweet_id2label, 'test_'+network+'.csv')
 
 
-def LR(lr=0.05, regulariser = "l2", l=0.1, epochs=100, embed_algo = "glove", load=True, cross_k = 1):
+def LR(lr=0.05, regulariser = "l2", l=0.1, epochs=75, embed_algo = "glove", load=True, cross_k = 1):
     core(lr=lr, regulariser = regulariser, l=l, epochs=epochs, embed_algo =embed_algo, load=load, cross_k = cross_k, network= "lr")
     return
 
-def NN(lr=0.01, regulariser = "l2", l=0.1, p= 0.2, epochs=200, embed_algo = "glove", hidden_state=128, load= True, cross_k = 1):
+def NN(lr=0.01, regulariser = "l2", l=0.1, p= 0.2, epochs=150, embed_algo = "glove", hidden_state=128, load= True, cross_k = 1):
     core(lr=lr, regulariser = regulariser, l=l, p= p,epochs=epochs, embed_algo = embed_algo, load=load, cross_k = cross_k, network= "nn", hidden_state=hidden_state)
     return
 
-def NN2(lr=1e-8, regulariser = "l2", l=0.1, p= 0.2, epochs=200, embed_algo = "glove", hidden_state=[128, 64, 32], load= True, cross_k = 1):
+def NN2(lr=1e-8, regulariser = "l2", l=0.1, p= 0.2, epochs=150, embed_algo = "glove", hidden_state=[128, 64, 32], load= True, cross_k = 1):
     core(lr=lr, regulariser = regulariser, l=l, p= p,epochs=epochs, embed_algo = embed_algo, load=load, cross_k = cross_k, network= "nn2", hidden_state=hidden_state)
     return
 
@@ -631,59 +632,59 @@ if __name__ == '__main__':
     The following lines are used for tuning the hypreparameters.
     Uncomment this part if you need to read the vectors from ./glove/vector.txt
     '''
-    # import argparse
-    # parser = argparse.ArgumentParser( description='HW 1', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    # parser.add_argument('-lr', '--lr',                   default="1.0,0.5,0.1,0.05,0.01",          type=str,      help='Learning Rate')
-    # parser.add_argument('-r', '--regulariser',           default="l2",          type=str,        help='l2, or None regulariser')
-    # parser.add_argument('-lm', '--lam',                  default=0.2,           type=float,      help='lambda for  regulariser')
-    # parser.add_argument('-e', '--epochs',                default=100,            type=int,        help='Set number of epochs')
-    # parser.add_argument('-ea', '--embed_algo',           default="glove",       type=str,        help='Embedding algorithm')
-    # parser.add_argument('-hs', '--hidden_state',         default="256,128,64,32", type=str,        help='number of hidden state')
-    # parser.add_argument('-ht', '--hidden_tuning',         default=None, type=str,        help='number of hidden state')
-    # parser.add_argument('-cv', '--compute_vocab',        default=False,         type=bool,       help='true if vocab is to be computed')
-    # parser.add_argument('-ck', '--cross_k',              default=10,             type=int,        help='k for k fold cross validation')
-    # parser.add_argument('-p', '--p',                     default=0.1,           type=float,      help='p for dropout ')
-    # parser.add_argument('-n', '--network',               default="all",          type=str,        help='network')
-    # global args
-    # args = parser.parse_args()
-    # print(args)
-    # args.lr = [float(i) for i in args.lr.split(",")]
-    # args.hidden_state = [int(h.strip()) for h in args.hidden_state.split(",")]
-    # if args.hidden_tuning is not None:
-    #     epoch = {512:50, 256:100, 128:200, 64:400, 32:800}
-    #     args.hidden_tuning = [int(h.strip()) for h in args.hidden_tuning.split(",")]
-    #     print(args.hidden_tuning)
-    #     for h in args.hidden_tuning:
-    #         print("\n\n\nRunning Neural Network: hidden neurons {}".format(h))
-    #         NN(lr=args.lr[-1], regulariser = args.regulariser, l=args.lam, p= args.p, epochs=epoch[h], embed_algo = args.embed_algo,load = not args.compute_vocab, hidden_state= h, cross_k= args.cross_k)           
-    # elif len(args.lr)>1:
-    #     print(args.lr)
-    #     for lr_cur in args.lr:
-    #         if args.network == "lr":
-    #             print("\n\n\nRunning Logistic Regression: lambda {}".format(lr_cur))
-    #             LR(lr=0.5, regulariser = args.regulariser, l=lr_cur, epochs=args.epochs, embed_algo = args.embed_algo, load = not args.compute_vocab, cross_k= args.cross_k)
-    #         else:
-    #             print("\n\n\nRunning Neural Network 2:  Lambda {}".format(lr_cur))
-    #             NN2(lr=lr_cur, regulariser = args.regulariser, l=args.lam, p= args.p,epochs=args.epochs, embed_algo = args.embed_algo,load = not args.compute_vocab, hidden_state= args.hidden_state[1:], cross_k= args.cross_k)
-    # else:
-    #     lr_cur = args.lr[0]
-    #     if args.network =="lr":
-    #         print("Running Logistic Regression:")
-    #         LR(lr=lr_cur, regulariser = args.regulariser, l=args.lam, epochs=args.epochs, embed_algo = args.embed_algo, load = not args.compute_vocab, cross_k= args.cross_k)
-    #     elif args.network =="nn":
-    #         print("Running Neural Network:")
-    #         NN(lr=lr_cur, regulariser = args.regulariser, l=args.lam, p= args.p, epochs=args.epochs, embed_algo = args.embed_algo,load = not args.compute_vocab, hidden_state= args.hidden_state[0], cross_k= args.cross_k)
-    #     elif args.network =="nn2":
-    #         print("Running Neural Network 2:")
-    #         NN2(lr=10e-8, regulariser = args.regulariser, l=args.lam, p= args.p,epochs=args.epochs, embed_algo = args.embed_algo,load = not args.compute_vocab, hidden_state= args.hidden_state[1:], cross_k= args.cross_k)
-    #     else:
-    #         LR()
-    #         NN()
+    import argparse
+    parser = argparse.ArgumentParser( description='HW 1', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('-lr', '--lr',                   default="0.01",          type=str,      help='Learning Rate')
+    parser.add_argument('-r', '--regulariser',           default="l2",          type=str,        help='l2, or None regulariser')
+    parser.add_argument('-lm', '--lam',                  default=0.1,           type=float,      help='lambda for  regulariser')
+    parser.add_argument('-e', '--epochs',                default=200,            type=int,        help='Set number of epochs')
+    parser.add_argument('-ea', '--embed_algo',           default="glove",       type=str,        help='Embedding algorithm')
+    parser.add_argument('-hs', '--hidden_state',         default="128", type=str,        help='number of hidden state')
+    parser.add_argument('-ht', '--hidden_tuning',         default=None, type=str,        help='number of hidden state')
+    parser.add_argument('-cv', '--compute_vocab',        default=False,         type=bool,       help='true if vocab is to be computed')
+    parser.add_argument('-ck', '--cross_k',              default=10,             type=int,        help='k for k fold cross validation')
+    parser.add_argument('-p', '--p',                     default=0.2,           type=float,      help='p for dropout ')
+    parser.add_argument('-n', '--network',               default="nn",          type=str,        help='network')
+    global args
+    args = parser.parse_args()
+    print(args)
+    args.lr = [float(i) for i in args.lr.split(",")]
+    args.hidden_state = [int(h.strip()) for h in args.hidden_state.split(",")]
+    if args.hidden_tuning is not None:
+        epoch = {512:50, 256:100, 128:200, 64:400, 32:800}
+        args.hidden_tuning = [int(h.strip()) for h in args.hidden_tuning.split(",")]
+        print(args.hidden_tuning)
+        for h in args.hidden_tuning:
+            print("\n\n\nRunning Neural Network: hidden neurons {}".format(h))
+            NN(lr=args.lr[-1], regulariser = args.regulariser, l=args.lam, p= args.p, epochs=epoch[h], embed_algo = args.embed_algo,load = not args.compute_vocab, hidden_state= h, cross_k= args.cross_k)           
+    elif len(args.lr)>1:
+        print(args.lr)
+        for lr_cur in args.lr:
+            if args.network == "lr":
+                print("\n\n\nRunning Logistic Regression: lambda {}".format(lr_cur))
+                LR(lr=0.5, regulariser = args.regulariser, l=lr_cur, epochs=args.epochs, embed_algo = args.embed_algo, load = not args.compute_vocab, cross_k= args.cross_k)
+            else:
+                print("\n\n\nRunning Neural Network 2:  Lambda {}".format(lr_cur))
+                NN2(lr=lr_cur, regulariser = args.regulariser, l=args.lam, p= args.p,epochs=args.epochs, embed_algo = args.embed_algo,load = not args.compute_vocab, hidden_state= args.hidden_state[1:], cross_k= args.cross_k)
+    else:
+        lr_cur = args.lr[0]
+        if args.network =="lr":
+            print("Running Logistic Regression:")
+            LR(lr=lr_cur, regulariser = args.regulariser, l=args.lam, epochs=args.epochs, embed_algo = args.embed_algo, load = not args.compute_vocab, cross_k= args.cross_k)
+        elif args.network =="nn":
+            print("Running Neural Network:")
+            NN(lr=lr_cur, regulariser = args.regulariser, l=args.lam, p= args.p, epochs=args.epochs, embed_algo = args.embed_algo,load = not args.compute_vocab, hidden_state= args.hidden_state[0], cross_k= args.cross_k)
+        elif args.network =="nn2":
+            print("Running Neural Network 2:")
+            NN2(lr=10e-8, regulariser = args.regulariser, l=args.lam, p= args.p,epochs=args.epochs, embed_algo = args.embed_algo,load = not args.compute_vocab, hidden_state= args.hidden_state[1:], cross_k= args.cross_k)
+        else:
+            LR()
+            NN()
         
-    '''
-    Final Run
-    '''
-    print("Running Logistic Regression:")
-    LR()
-    print("Running Neural Network:")
-    NN()
+    # # '''
+    # # Final Run
+    # # '''
+    # print("Running Logistic Regression:")
+    # LR()
+    # print("Running Neural Network:")
+    # NN()
